@@ -9,7 +9,7 @@ func _initialize() -> void:
 	for level in range(Puzzle.LEVEL_COUNT):
 		_solve_level(level)
 	if failures.is_empty():
-		print("PASS: six room replays, circuit regressions, timed gates, and reset")
+		print("PASS: ten room replays, split circuits, timed gates, and reset")
 		quit(0)
 	else:
 		for failure in failures:
@@ -23,7 +23,7 @@ func _check(condition: bool, message: String) -> void:
 
 
 func _walkable(s: PuzzleState, cell: Vector2i) -> bool:
-	return not s.is_wall(cell) and cell != s.emitter and cell != s.receiver \
+	return not s.is_wall(cell) and cell != s.emitter and cell != s.receiver and cell != s.extra_receiver and cell != s.splitter \
 		and cell != s.socket and cell != s.battery and not s.mirrors.has(cell) \
 		and (cell != s.gate or s.gate_open)
 
@@ -106,6 +106,14 @@ func _mirror_solution(index: int) -> Dictionary:
 			return {Vector2i(5, 7): true, Vector2i(5, 2): true, Vector2i(8, 2): false}
 		5:
 			return {Vector2i(5, 7): true, Vector2i(5, 2): true, Vector2i(9, 2): false, Vector2i(9, 6): false}
+		6:
+			return {Vector2i(5, 2): true}
+		7:
+			return {Vector2i(5, 2): true, Vector2i(8, 2): false, Vector2i(9, 7): true}
+		8:
+			return {Vector2i(6, 2): true, Vector2i(9, 7): true}
+		9:
+			return {Vector2i(5, 2): true, Vector2i(9, 2): false, Vector2i(8, 7): true, Vector2i(8, 4): false}
 		_:
 			return {}
 
@@ -117,6 +125,14 @@ func _solve_level(index: int) -> void:
 	_check(s.carrying, "Room %d cell should be carried" % (index + 1))
 	_interact_with(s, s.socket)
 	_check(s.socket_filled, "Room %d socket should be filled" % (index + 1))
+	if s.splitter != Vector2i(-1, -1):
+		_check(not s.gate_open, "Room %d must require both prism branches" % (index + 1))
+		_check(s.beam_segments.size() > 1, "Room %d prism should create beam segments" % (index + 1))
+	if index == 8:
+		_interact_with(s, Vector2i(6, 2))
+		_check(s.extra_receiver_on and not s.receiver_on, "Room 9 should have one live branch")
+		_walk_to(s, s.plate)
+		_check(s.plate_time == 0.0 and not s.gate_open, "Room 9 plate must not arm on partial signal")
 
 	if index == 0:
 		_check(s.receiver_on and s.gate_open, "Room 1 socket should open gate")
@@ -130,12 +146,19 @@ func _solve_level(index: int) -> void:
 		if s.mirrors[cell] != solution[cell]:
 			_interact_with(s, cell)
 	_check(s.receiver_on, "Room %d mirrors should light receiver" % (index + 1))
+	if s.extra_receiver != Vector2i(-1, -1):
+		_check(s.extra_receiver_on, "Room %d second receiver should light" % (index + 1))
 
 	if index == 1:
 		_interact_with(s, Vector2i(8, 6))
 		_check(not s.receiver_on and not s.gate_open, "Turning mirror away must switch receiver off")
 		_interact_with(s, Vector2i(8, 6))
 		_check(s.receiver_on, "Turning mirror back should restore signal")
+	if index == 6:
+		_interact_with(s, Vector2i(5, 2))
+		_check(s.receiver_on and not s.extra_receiver_on and not s.gate_open, "Room 7 partial prism signal must not open gate")
+		_interact_with(s, Vector2i(5, 2))
+		_check(s.gate_open, "Room 7 restoring both branches should open gate")
 
 	if s.plate != Vector2i(-1, -1):
 		_check(not s.gate_open, "Room %d should require its plate" % (index + 1))

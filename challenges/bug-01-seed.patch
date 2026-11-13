@@ -1,14 +1,14 @@
 diff --git a/scripts/puzzle_state.gd b/scripts/puzzle_state.gd
 --- a/scripts/puzzle_state.gd
 +++ b/scripts/puzzle_state.gd
-@@ -134,9 +134,9 @@ func tick(delta: float) -> void:
- 
- 
+@@ -147,8 +147,8 @@ func tick(delta: float) -> void:
  func _recompute() -> void:
  	beam.clear()
+ 	beam_segments.clear()
 -	receiver_on = false
+-	extra_receiver_on = false
  	if socket_filled:
 +		receiver_on = false
- 		var cell := emitter
- 		var direction := Vector2i.RIGHT
- 		beam.append(cell)
++		extra_receiver_on = false
+ 		# Each ray owns its visited states, preventing mirror loops from hanging.
+ 		var rays: Array[Dictionary] = [{"cell": emitter, "direction": Vector2i.RIGHT}]
