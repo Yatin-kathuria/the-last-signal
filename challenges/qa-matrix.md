@@ -8,10 +8,13 @@ Each case starts from a fresh room unless the row says otherwise. The on-screen 
 | 01-B: disconnect | After 01-A: E | Beam vanishes; receiver darkens; gate bars return | Empty `beam`; `not receiver_on`; `not gate_open` |
 | 02-A: missed mirror | Room 02: pick up cell, connect socket | Beam goes right, reflects downward, and misses receiver | `socket_filled`; `not receiver_on` |
 | 02-B: rotate | Face mirror from above; E | Beam reflects upward; receiver lights; gate opens | `receiver_on`; `gate_open` |
-| 03-A: receiver only | Room 03: connect cell and rotate upper mirror | Receiver lights; gate remains closed; UI says `GATE WAITING` | `receiver_on`; `not gate_open` |
-| 03-B: plate | After 03-A: step on plate | Plate glows, gate opens, UI starts near `6.0s` | `plate_time > 0`; `gate_open` |
-| 03-C: timeout | Step off plate and wait more than six seconds | Countdown reaches zero; bars return; gate blocks entry | `plate_time == 0`; `not gate_open` |
-| 03-D: refresh | Re-enter plate before reaching exit | Countdown returns near `6.0s` | `plate_time > 0`; `gate_open` |
+| 03-A: double reflection | Room 03: connect cell and align both mirrors | Beam turns twice; receiver lights; gate opens | `receiver_on`; `gate_open` |
+| 04-A: receiver only | Room 04: connect cell and rotate upper mirror | Receiver lights; gate remains closed; UI says `GATE WAITING` | `receiver_on`; `not gate_open` |
+| 04-B: plate | After 04-A: step on plate | Plate glows, gate opens, UI starts near `6.0s` | `plate_time > 0`; `gate_open` |
+| 04-C: timeout | Step off plate and wait more than six seconds | Countdown reaches zero; bars return; gate blocks entry | `plate_time == 0`; `not gate_open` |
+| 04-D: refresh | Re-enter plate before reaching exit | Countdown returns near `6.0s` | `plate_time > 0`; `gate_open` |
+| 05-A: three turns | Room 05: align three mirrors, then step on plate | Beam reaches receiver after three turns; gate timer starts | `receiver_on`; `gate_open` |
+| 06-A: final route | Room 06: align four mirrors, step on plate, navigate around the wall | The final beam reaches receiver; player clears gate before timeout | `won` |
 | Reset | Press R in any room | Loose cell, dark receiver, closed gate; mirror positions restored | Initial room state restored |
 
-Browser smoke test: the exported `web/` build loaded through a local HTTP server, showed all three rooms, accepted keyboard and on-screen input, and produced no browser console errors.
+Browser smoke test: the exported `web/` build loaded through a local HTTP server, showed the menu, Learn to Play section, guided first room, and later rooms, accepted keyboard and on-screen input, and produced no browser console errors.

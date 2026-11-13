@@ -21,7 +21,7 @@ Removing the cell clears the beam, switches off the receiver, and closes the gat
 - The on-screen beam, receiver, and gate agree after every insert/remove action.
 - The gate blocks movement whenever the receiver is unpowered.
 - Repeated insert/remove cycles do not leave stale power state.
-- Rooms 02 and 03 still solve normally.
+- Rooms 02–06 still solve normally.
 - The deterministic replay test passes.
 
 To reproduce, apply `bug-01-seed.patch` to a clean checkout. The normal playable build and `bug-01-reference.md` show the reference solution.

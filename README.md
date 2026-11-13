@@ -1,6 +1,6 @@
 # The Last Signal
 
-A three-room circuit puzzle built in **Godot 4.7.2** with GDScript. Carry a power cell, rotate mirrors, catch a beam, and reach the exit. The final room adds a pressure plate and a six-second gate window.
+A six-room circuit puzzle built in **Godot 4.7.2** with GDScript. Carry a power cell, rotate mirrors, catch a beam, and reach the exit. Later rooms add pressure plates and a six-second gate window. The presentation includes a short cinematic opening, room title cards, original generated sound, and a separate **Learn to Play** section.
 
 This is a small game and a gameplay assessment sample. The playable version is the **reference solution**. The `challenges/` folder contains a realistic bug report, a feature brief, exact acceptance criteria, and a patch that introduces the bug into a copy of the project.
 
@@ -13,8 +13,18 @@ This is a small game and a gameplay assessment sample. The playable version is t
 | Restart current room | R | Reset button |
 | Continue after a room | Enter | Next Room button |
 | Return to title | Escape | — |
+| Toggle sound | M | — |
 
-The game is intentionally small: three handcrafted rooms, one battery per room, one beam receiver, and one exit. Each room adds a system and then uses the previous systems. The model in [`scripts/puzzle_state.gd`](scripts/puzzle_state.gd) owns all puzzle state; [`scripts/game.gd`](scripts/game.gd) handles presentation and input. Room data is kept beside the rules so reproductions remain deterministic.
+The first room gives contextual hints and a pulsing target marker. Each later room asks for a longer signal route; Rooms 04–06 also add the timed plate. The model in [`scripts/puzzle_state.gd`](scripts/puzzle_state.gd) owns all puzzle state; [`scripts/game.gd`](scripts/game.gd) handles presentation and input. Room data is kept beside the rules so reproductions remain deterministic.
+
+| Room | New challenge |
+| --- | --- |
+| 01 · First Spark | Guided cell pickup, socket connection, and exit |
+| 02 · Reflection | One mirror |
+| 03 · Double Back | Two mirrors |
+| 04 · The Window | Two mirrors plus a timed plate |
+| 05 · Fractured Path | Three mirrors plus a timed plate |
+| 06 · Final Transmission | Four mirrors, a blocked route, and a timed plate |
 
 ## Run locally
 
@@ -26,7 +36,7 @@ The game is intentionally small: three handcrafted rooms, one battery per room, 
    godot --headless --path . --script res://tests/test_puzzle.gd
    ```
 
-The test replays all three rooms and checks gate, mirror, removal, timeout, and reset transitions.
+The test replays all six rooms and checks gate, mirror, removal, timeout, and reset transitions. The audio files are original and reproducible with `python3 scripts/generate_audio.py`.
 
 ## Publish on GitHub Pages
 
@@ -53,4 +63,4 @@ The workflow serves the checked-in build, so run `./scripts/export_web.sh` and c
 - [`challenges/feature-01-reference.md`](challenges/feature-01-reference.md): implementation and acceptance replay, as shipped in the clean game.
 - [`challenges/qa-matrix.md`](challenges/qa-matrix.md): input sequences, expected visuals, and state checks for manual playtesting.
 
-All in-game art is drawn by Godot code; the project icon is a small SVG. No external assets or services are required to play.
+All in-game art is drawn by Godot code; the project icon is a small SVG. The sound palette is generated in the repository. No external assets or services are required to play.

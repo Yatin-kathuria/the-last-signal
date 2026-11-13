@@ -1,16 +1,18 @@
 class_name PuzzleState
 extends RefCounted
 
-## Deterministic rules for the three-room game. The renderer never owns puzzle state.
+## Deterministic rules for the six-room game. The renderer never owns puzzle state.
 
 const WIDTH := 14
 const HEIGHT := 9
+const LEVEL_COUNT := 6
 const PLATE_SECONDS := 6.0
 
 var level_index := 0
 var map_rows: Array[String] = []
 var title := ""
 var subtitle := ""
+var story := ""
 var player := Vector2i.ZERO
 var facing := Vector2i.RIGHT
 var battery := Vector2i(-1, -1)
@@ -36,13 +38,14 @@ func _init(index: int = 0) -> void:
 
 
 func load_level(index: int) -> void:
-	level_index = clampi(index, 0, 2)
+	level_index = clampi(index, 0, LEVEL_COUNT - 1)
 	var data := _level_data(level_index)
 	map_rows.clear()
 	for row in data.rows:
 		map_rows.append(row)
 	title = data.title
 	subtitle = data.subtitle
+	story = data.story
 	player = data.player
 	facing = Vector2i.RIGHT
 	battery = data.battery
@@ -176,8 +179,9 @@ func _level_data(index: int) -> Dictionary:
 	match index:
 		0:
 			return {
-				"title": "01 / FIRST CONTACT",
-				"subtitle": "Carry the cell to its socket. Follow the light.",
+				"title": "01 / FIRST SPARK",
+				"subtitle": "A guided first step through the dark.",
+				"story": "ONE CELL. ONE CHANCE TO RESTART THE GRID.",
 				"rows": split_rows,
 				"player": Vector2i(2, 5), "battery": Vector2i(3, 5),
 				"socket": Vector2i(4, 5), "emitter": Vector2i(5, 3),
@@ -189,23 +193,65 @@ func _level_data(index: int) -> Dictionary:
 			rows[4] = "#............#"
 			rows[5] = "#..........#.#"
 			return {
-				"title": "02 / CHANGE OF DIRECTION",
-				"subtitle": "Rotate the mirror until the receiver catches the beam.",
+				"title": "02 / REFLECTION",
+				"subtitle": "The light needs one turn.",
+				"story": "A SINGLE MIRROR CAN CHANGE THE ROUTE.",
 				"rows": rows,
 				"player": Vector2i(1, 5), "battery": Vector2i(2, 5),
 				"socket": Vector2i(3, 6), "emitter": Vector2i(4, 6),
 				"receiver": Vector2i(8, 2), "mirrors": {Vector2i(8, 6): false},
 				"gate": Vector2i(11, 4), "exit_tile": Vector2i(12, 4),
 			}
-		_:
+		2:
 			return {
-				"title": "03 / THE WINDOW",
-				"subtitle": "Route the beam, then race from the plate to the gate.",
+				"title": "03 / DOUBLE BACK",
+				"subtitle": "Two mirrors must agree before the receiver wakes.",
+				"story": "THE SECOND REFLECTION IS STILL OUT OF ALIGNMENT.",
+				"rows": split_rows,
+				"player": Vector2i(1, 6), "battery": Vector2i(2, 6),
+				"socket": Vector2i(2, 7), "emitter": Vector2i(3, 7),
+				"receiver": Vector2i(10, 3),
+				"mirrors": {Vector2i(7, 7): false, Vector2i(7, 3): false},
+				"gate": Vector2i(11, 5), "exit_tile": Vector2i(12, 5),
+			}
+		3:
+			return {
+				"title": "04 / THE WINDOW",
+				"subtitle": "Route the beam, then outrun the gate timer.",
+				"story": "POWER ALONE IS NOT ENOUGH. STEP ON THE PLATE.",
 				"rows": split_rows,
 				"player": Vector2i(1, 6), "battery": Vector2i(2, 6),
 				"socket": Vector2i(2, 7), "emitter": Vector2i(3, 7),
 				"receiver": Vector2i(10, 3),
 				"mirrors": {Vector2i(7, 7): true, Vector2i(7, 3): false},
 				"plate": Vector2i(9, 6),
+				"gate": Vector2i(11, 5), "exit_tile": Vector2i(12, 5),
+			}
+		4:
+			return {
+				"title": "05 / FRACTURED PATH",
+				"subtitle": "Three mirrors. One short window.",
+				"story": "THE SIGNAL MUST TURN THREE TIMES TO SURVIVE.",
+				"rows": split_rows,
+				"player": Vector2i(1, 6), "battery": Vector2i(2, 6),
+				"socket": Vector2i(2, 7), "emitter": Vector2i(3, 7),
+				"receiver": Vector2i(8, 6),
+				"mirrors": {Vector2i(5, 7): false, Vector2i(5, 2): false, Vector2i(8, 2): true},
+				"plate": Vector2i(9, 6),
+				"gate": Vector2i(11, 5), "exit_tile": Vector2i(12, 5),
+			}
+		_:
+			var final_rows := split_rows.duplicate()
+			final_rows[5] = "#.......#....#"
+			return {
+				"title": "06 / FINAL TRANSMISSION",
+				"subtitle": "Four mirrors. A blocked corridor. The last gate.",
+				"story": "THE FINAL PULSE MUST FIND A WAY THROUGH.",
+				"rows": final_rows,
+				"player": Vector2i(1, 6), "battery": Vector2i(2, 6),
+				"socket": Vector2i(2, 7), "emitter": Vector2i(3, 7),
+				"receiver": Vector2i(10, 6),
+				"mirrors": {Vector2i(5, 7): false, Vector2i(5, 2): false, Vector2i(9, 2): true, Vector2i(9, 6): true},
+				"plate": Vector2i(8, 6),
 				"gate": Vector2i(11, 5), "exit_tile": Vector2i(12, 5),
 			}

@@ -1,13 +1,15 @@
 extends SceneTree
 
 const Puzzle := preload("res://scripts/puzzle_state.gd")
+const DIRECTIONS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
 var failures: Array[String] = []
 
 
 func _initialize() -> void:
-	_run()
+	for level in range(Puzzle.LEVEL_COUNT):
+		_solve_level(level)
 	if failures.is_empty():
-		print("PASS: all puzzle state and input replay checks")
+		print("PASS: six room replays, circuit regressions, timed gates, and reset")
 		quit(0)
 	else:
 		for failure in failures:
@@ -20,71 +22,135 @@ func _check(condition: bool, message: String) -> void:
 		failures.append(message)
 
 
-func _move_many(s: PuzzleState, direction: Vector2i, count: int) -> void:
-	for i in range(count):
-		_check(s.move(direction), "Expected move %d toward %s in room %d" % [i + 1, str(direction), s.level_index + 1])
+func _walkable(s: PuzzleState, cell: Vector2i) -> bool:
+	return not s.is_wall(cell) and cell != s.emitter and cell != s.receiver \
+		and cell != s.socket and cell != s.battery and not s.mirrors.has(cell) \
+		and (cell != s.gate or s.gate_open)
 
 
-func _run() -> void:
-	var s := Puzzle.new()
-	_check(not s.receiver_on and not s.gate_open, "Room 1 should begin unpowered")
-	_check(not s.move(Vector2i.RIGHT), "Loose cell should block walking")
-	_check(s.interact(), "Room 1 cell should be pickable")
-	_check(s.carrying, "Cell should be carried")
-	_check(s.move(Vector2i.RIGHT), "Player should move into former cell position")
-	_check(s.interact(), "Room 1 cell should fit the socket")
-	_check(s.receiver_on and s.gate_open, "Socket should power receiver and gate")
-	_check(s.interact(), "Cell should be removable from socket")
-	_check(not s.receiver_on and not s.gate_open and s.beam.is_empty(), "Removing cell must clear beam and close gate")
-	_check(s.interact(), "Cell should fit the socket again")
-	_move_many(s, Vector2i.DOWN, 1)
-	_move_many(s, Vector2i.RIGHT, 7)
-	_move_many(s, Vector2i.UP, 1)
-	_move_many(s, Vector2i.RIGHT, 2)
-	_check(s.won, "Room 1 replay should reach exit")
+func _path(s: PuzzleState, goal: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if s.player == goal:
+		return result
+	var queue: Array[Vector2i] = [s.player]
+	var came_from: Dictionary = {s.player: s.player}
+	var head := 0
+	while head < queue.size():
+		var cell := queue[head]
+		head += 1
+		for direction in DIRECTIONS:
+			var next_cell := cell + direction
+			if came_from.has(next_cell) or not _walkable(s, next_cell):
+				continue
+			came_from[next_cell] = cell
+			queue.append(next_cell)
+			if next_cell == goal:
+				break
+		if came_from.has(goal):
+			break
+	if not came_from.has(goal):
+		return result
+	var cursor := goal
+	while cursor != s.player:
+		var previous: Vector2i = came_from[cursor]
+		result.push_front(cursor - previous)
+		cursor = previous
+	return result
 
-	s.load_level(1)
-	_check(s.interact(), "Room 2 cell should be pickable")
-	_move_many(s, Vector2i.RIGHT, 1)
-	_move_many(s, Vector2i.DOWN, 1)
-	_check(not s.move(Vector2i.RIGHT), "Socket should block walking and set facing")
-	_check(s.interact(), "Room 2 cell should connect")
-	_check(not s.receiver_on, "Room 2 mirror should initially miss receiver")
-	_move_many(s, Vector2i.UP, 1)
-	_move_many(s, Vector2i.RIGHT, 6)
-	_check(not s.move(Vector2i.DOWN), "Mirror should block walking and set facing")
-	_check(s.interact(), "Room 2 mirror should rotate")
-	_check(s.receiver_on and s.gate_open, "Rotated mirror should power receiver")
-	_check(s.interact(), "Room 2 mirror should rotate back")
-	_check(not s.receiver_on and not s.gate_open, "Receiver must turn off when beam misses")
-	_check(s.interact(), "Room 2 mirror should rotate into solution")
-	_move_many(s, Vector2i.RIGHT, 2)
-	_move_many(s, Vector2i.UP, 1)
-	_move_many(s, Vector2i.RIGHT, 2)
-	_check(s.won, "Room 2 replay should reach exit")
 
-	s.load_level(2)
-	_check(s.interact(), "Room 3 cell should be pickable")
-	_move_many(s, Vector2i.RIGHT, 1)
-	_check(not s.move(Vector2i.DOWN), "Room 3 socket should block walking")
-	_check(s.interact(), "Room 3 cell should connect")
-	_move_many(s, Vector2i.RIGHT, 5)
-	_move_many(s, Vector2i.UP, 2)
-	_check(not s.move(Vector2i.UP), "Second mirror should block walking")
-	_check(s.interact(), "Second mirror should rotate")
-	_check(s.receiver_on and not s.gate_open, "Plate should still be required")
-	_move_many(s, Vector2i.RIGHT, 1)
-	_move_many(s, Vector2i.DOWN, 2)
-	_move_many(s, Vector2i.RIGHT, 1)
-	_check(s.gate_open and s.plate_time > 0.0, "Plate should start timed gate")
-	_move_many(s, Vector2i.RIGHT, 1)
-	s.tick(6.1)
-	_check(not s.gate_open, "Gate should close after timer expires")
-	_move_many(s, Vector2i.LEFT, 1)
-	_check(s.gate_open, "Plate should rearm gate")
-	_move_many(s, Vector2i.RIGHT, 1)
-	_move_many(s, Vector2i.UP, 1)
-	_move_many(s, Vector2i.RIGHT, 2)
-	_check(s.won, "Room 3 replay should reach exit")
+func _walk_to(s: PuzzleState, goal: Vector2i, seconds_per_move: float = 0.0) -> void:
+	var path := _path(s, goal)
+	if path.is_empty() and goal != s.player:
+		_check(false, "No walking route to %s in room %d" % [str(goal), s.level_index + 1])
+		return
+	for direction in path:
+		_check(s.move(direction), "Walking replay blocked in room %d" % (s.level_index + 1))
+		if seconds_per_move > 0.0:
+			s.tick(seconds_per_move)
+	_check(s.player == goal, "Walking replay missed goal in room %d" % (s.level_index + 1))
+
+
+func _interact_with(s: PuzzleState, device: Vector2i) -> void:
+	var found := false
+	var best_path: Array[Vector2i] = []
+	var best_direction := Vector2i.ZERO
+	for direction in DIRECTIONS:
+		var stand := device - direction
+		if not _walkable(s, stand):
+			continue
+		var candidate := _path(s, stand)
+		if candidate.is_empty() and stand != s.player:
+			continue
+		if not found or candidate.size() < best_path.size():
+			found = true
+			best_path = candidate
+			best_direction = direction
+	if not found:
+		_check(false, "No interaction route to %s in room %d" % [str(device), s.level_index + 1])
+		return
+	for direction in best_path:
+		_check(s.move(direction), "Interaction approach blocked in room %d" % (s.level_index + 1))
+	_check(not s.move(best_direction), "Device should block movement in room %d" % (s.level_index + 1))
+	_check(s.interact(), "Device interaction failed in room %d" % (s.level_index + 1))
+
+
+func _mirror_solution(index: int) -> Dictionary:
+	match index:
+		1:
+			return {Vector2i(8, 6): true}
+		2:
+			return {Vector2i(7, 7): true, Vector2i(7, 3): true}
+		3:
+			return {Vector2i(7, 7): true, Vector2i(7, 3): true}
+		4:
+			return {Vector2i(5, 7): true, Vector2i(5, 2): true, Vector2i(8, 2): false}
+		5:
+			return {Vector2i(5, 7): true, Vector2i(5, 2): true, Vector2i(9, 2): false, Vector2i(9, 6): false}
+		_:
+			return {}
+
+
+func _solve_level(index: int) -> void:
+	var s: PuzzleState = Puzzle.new(index)
+	_check(not s.receiver_on and not s.gate_open, "Room %d should begin unpowered" % (index + 1))
+	_interact_with(s, s.battery)
+	_check(s.carrying, "Room %d cell should be carried" % (index + 1))
+	_interact_with(s, s.socket)
+	_check(s.socket_filled, "Room %d socket should be filled" % (index + 1))
+
+	if index == 0:
+		_check(s.receiver_on and s.gate_open, "Room 1 socket should open gate")
+		_interact_with(s, s.socket)
+		_check(s.beam.is_empty() and not s.receiver_on and not s.gate_open, "Removing cell must clear beam and close gate")
+		_interact_with(s, s.socket)
+		_check(s.receiver_on and s.gate_open, "Reinserting cell should restore power")
+
+	var solution := _mirror_solution(index)
+	for cell in solution:
+		if s.mirrors[cell] != solution[cell]:
+			_interact_with(s, cell)
+	_check(s.receiver_on, "Room %d mirrors should light receiver" % (index + 1))
+
+	if index == 1:
+		_interact_with(s, Vector2i(8, 6))
+		_check(not s.receiver_on and not s.gate_open, "Turning mirror away must switch receiver off")
+		_interact_with(s, Vector2i(8, 6))
+		_check(s.receiver_on, "Turning mirror back should restore signal")
+
+	if s.plate != Vector2i(-1, -1):
+		_check(not s.gate_open, "Room %d should require its plate" % (index + 1))
+		_walk_to(s, s.plate)
+		_check(s.gate_open and s.plate_time > 0.0, "Room %d plate should open gate" % (index + 1))
+		if index == 3:
+			_check(s.move(Vector2i.LEFT), "Room 4 player should step off plate")
+			s.tick(Puzzle.PLATE_SECONDS + 0.1)
+			_check(not s.gate_open, "Room 4 gate must close after timeout")
+			_check(s.move(Vector2i.RIGHT), "Room 4 player should re-enter plate")
+			_check(s.gate_open, "Room 4 plate should rearm gate")
+		_walk_to(s, s.exit_tile, 0.35)
+	else:
+		_check(s.gate_open, "Room %d receiver should open gate" % (index + 1))
+		_walk_to(s, s.exit_tile)
+	_check(s.won, "Room %d should be solvable by replay" % (index + 1))
 	s.reset()
-	_check(not s.socket_filled and not s.receiver_on and not s.gate_open, "Reset should clear all circuit state")
+	_check(not s.socket_filled and not s.receiver_on and not s.gate_open, "Room %d reset should clear circuit" % (index + 1))
